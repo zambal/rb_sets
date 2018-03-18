@@ -1,0 +1,14 @@
+{application, rb_sets,
+ [
+  {description, "Erlang NIF driver for Roaring Bitmaps"},
+  {vsn, "0.1.0"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {env, []},
+  {maintainers, ["Vincent Siliakus"]},
+  {licenses, ["Apache License 2"]},
+  {links, [{"Github", "https://github.com/zambal/rb_sets"}]}
+ ]}.
