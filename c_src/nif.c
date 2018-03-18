@@ -16,6 +16,7 @@ typedef struct {
 
 typedef struct {
   roaring_uint32_iterator_t *it;
+  rb_res *rbres;
 } it_res;
 
 static ERL_NIF_TERM rb_new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
@@ -311,8 +312,9 @@ static ERL_NIF_TERM rb_iterator(ErlNifEnv* env, int argc, const ERL_NIF_TERM arg
   res = (it_res *)enif_alloc_resource(it_res_type, sizeof(it_res));
   if(!res) enif_make_badarg(env);
 
-  res->it = roaring_create_iterator(res1->rb);
-  if(!res->it) enif_make_badarg(env);
+  res->it = NULL;
+  res->rbres = res1;
+  enif_keep_resource(res1);
 
   return enif_make_resource(env, res);
 }
@@ -325,7 +327,13 @@ static ERL_NIF_TERM rb_next(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_badarg(env);
   }
 
-  if(roaring_advance_uint32_iterator(res->it))
+  if(!res->it) {
+    res->it = roaring_create_iterator(res->rbres->rb);
+    if(!res->it) enif_make_badarg(env);
+
+    return enif_make_uint(env, res->it->current_value);
+  }
+  else if(roaring_advance_uint32_iterator(res->it))
     return enif_make_uint(env, res->it->current_value);
   else
     return ATOM_UNDEFINED;
@@ -353,14 +361,20 @@ static void rb_res_dtor(ErlNifEnv *env, void *resource) {
   __UNUSED(env);
 
   rb_res *res = (rb_res*)resource;
-  roaring_bitmap_free(res->rb);
+
+  if(res->rb)
+    roaring_bitmap_free(res->rb);
 }
 
 static void it_res_dtor(ErlNifEnv *env, void *resource) {
   __UNUSED(env);
 
   it_res *res = (it_res*)resource;
-  roaring_free_uint32_iterator(res->it);
+
+  if(res->it)
+    roaring_free_uint32_iterator(res->it);
+
+  enif_release_resource(res->rbres);
 }
 
 static int load(ErlNifEnv* env, void** priv_data, ERL_NIF_TERM load_info)
