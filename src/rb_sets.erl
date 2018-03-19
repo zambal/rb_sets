@@ -5,6 +5,9 @@
   from_list/1,
   from_range/3,
   from_mutable/1,
+  from_binary/1,
+  to_binary/1,
+  to_list/1,
   to_mutable/1,
   is_mutable/1,
   intersection/2,
@@ -15,7 +18,6 @@
   delete/2,
   is_member/2,
   size/1,
-  to_list/1,
   is_subset/2,
   is_strict_subset/2,
   equals/2,
@@ -37,6 +39,12 @@ from_range(_Min, _Max, _Step) -> ?NOT_LOADED.
 
 from_mutable(_BM) -> ?NOT_LOADED.
 
+from_binary(_Bin) -> ?NOT_LOADED.
+
+to_binary(_BM) -> ?NOT_LOADED.
+
+to_list(_BM) -> ?NOT_LOADED.
+
 to_mutable(_BM) -> ?NOT_LOADED.
 
 is_mutable(_BM) -> ?NOT_LOADED.
@@ -56,8 +64,6 @@ delete(_N, _BM) -> ?NOT_LOADED.
 is_member(_N, _BM) -> ?NOT_LOADED.
 
 size(_BM) -> ?NOT_LOADED.
-
-to_list(_BM) -> ?NOT_LOADED.
 
 is_subset(_BM1, _BM2) -> ?NOT_LOADED.
 
