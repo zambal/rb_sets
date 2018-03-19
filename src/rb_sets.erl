@@ -4,6 +4,9 @@
   new/0,
   from_list/1,
   from_range/3,
+  from_mutable/1,
+  to_mutable/1,
+  is_mutable/1,
   intersection/2,
   union/2,
   sym_difference/2,
@@ -29,6 +32,12 @@ new() -> ?NOT_LOADED.
 from_list(_List) -> ?NOT_LOADED.
 
 from_range(_Min, _Max, _Step) -> ?NOT_LOADED.
+
+from_mutable(_BM) -> ?NOT_LOADED.
+
+to_mutable(_BM) -> ?NOT_LOADED.
+
+is_mutable(_BM) -> ?NOT_LOADED.
 
 intersection(_BM1, _BM2) -> ?NOT_LOADED.
 
