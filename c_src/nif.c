@@ -481,7 +481,7 @@ static ERL_NIF_TERM rb_next(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
   ERL_NIF_TERM ret;
   if(!res->it) {
     res->it = roaring_create_iterator(res->rbres->rb);
-    if(!res->it) enif_make_badarg(env);
+    if(!res->it) return enif_make_badarg(env);
     ret = enif_make_uint(env, res->it->current_value);
   }
   else if(roaring_advance_uint32_iterator(res->it))
@@ -493,23 +493,42 @@ static ERL_NIF_TERM rb_next(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
   return ret;
 }
 
-/*
 static ERL_NIF_TERM rb_move(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
   it_res *res;
   uint32_t n;
 
   if(!(argc == 2 &&
-      enif_get_resource(env, argv[0], it_res_type, (void**)&res) &&
-      enif_get_uint(env, argv[1], &n))) {
+      enif_get_uint(env, argv[0], &n) &&
+      enif_get_resource(env, argv[1], it_res_type, (void**)&res))) {
     return enif_make_badarg(env);
   }
 
-  if(roaring_move_uint32_iterator_equalorlarger(res->it, n))
-    return enif_make_uint(env, res->it->current_value);
+  enif_mutex_lock(res->lock);
+  if(roaring_move_uint32_iterator_equalorlarger(res->it, n)) {
+    ERL_NIF_TERM ret = enif_make_uint(env, res->it->current_value);
+    enif_mutex_unlock(res->lock);
+    return ret;
+  }
   else
     return ATOM_UNDEFINED;
 }
-*/
+
+static ERL_NIF_TERM rb_reset(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+  it_res *res;
+
+  if(!(argc == 1 &&
+      enif_get_resource(env, argv[0], it_res_type, (void**)&res))) {
+    return enif_make_badarg(env);
+  }
+
+  enif_mutex_lock(res->lock);
+  if(res->it) {
+    roaring_free_uint32_iterator(res->it);
+    res->it = NULL;
+  }
+  enif_mutex_unlock(res->lock);
+  return argv[0];
+}
 
 static void rb_res_dtor(ErlNifEnv *env, void *resource) {
   __UNUSED(env);
@@ -591,8 +610,9 @@ static ErlNifFunc nif_funcs[] =
   {"is_strict_subset", 2, rb_is_strict_subset},
   {"equals", 2, rb_equals},
   {"iterator", 1, rb_iterator},
-  {"next", 1, rb_next}
-//  {"move", 1, rb_move}
+  {"next", 1, rb_next},
+  {"move", 2, rb_move},
+  {"reset", 1, rb_reset},
 };
 
 ERL_NIF_INIT(rb_sets, nif_funcs, &load, NULL, NULL, &unload);

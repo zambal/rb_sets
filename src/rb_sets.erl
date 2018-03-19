@@ -20,7 +20,9 @@
   is_strict_subset/2,
   equals/2,
   iterator/1,
-  next/1
+  next/1,
+  move/2,
+  reset/1
 ]).
 
 -on_load(init/0).
@@ -67,6 +69,9 @@ iterator(_BM) -> ?NOT_LOADED.
 
 next(_It) -> ?NOT_LOADED.
 
+move(_N, _It) -> ?NOT_LOADED.
+
+reset(_It) -> ?NOT_LOADED.
 
 init() ->
     PrivDir = case code:priv_dir(?MODULE) of
