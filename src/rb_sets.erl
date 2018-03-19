@@ -38,11 +38,11 @@ sym_difference(_BM1, _BM2) -> ?NOT_LOADED.
 
 difference(_BM1, _BM2) -> ?NOT_LOADED.
 
-add(_BM, _N) -> ?NOT_LOADED.
+add(_N, _BM) -> ?NOT_LOADED.
 
-delete(_BM, _N) -> ?NOT_LOADED.
+delete(_N, _BM) -> ?NOT_LOADED.
 
-is_member(_BM, _N) -> ?NOT_LOADED.
+is_member(_N, _BM) -> ?NOT_LOADED.
 
 size(_BM) -> ?NOT_LOADED.
 

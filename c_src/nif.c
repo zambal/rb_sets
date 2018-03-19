@@ -165,8 +165,8 @@ static ERL_NIF_TERM rb_add(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) 
   uint32_t n;
 
   if(!(argc == 2 &&
-      enif_get_resource(env, argv[0], rb_res_type, (void**)&res1) &&
-      enif_get_uint(env, argv[1], &n))) {
+      enif_get_uint(env, argv[0], &n) &&
+      enif_get_resource(env, argv[1], rb_res_type, (void**)&res1))) {
     return enif_make_badarg(env);
   }
 
@@ -186,8 +186,8 @@ static ERL_NIF_TERM rb_delete(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[
   uint32_t n;
 
   if(!(argc == 2 &&
-      enif_get_resource(env, argv[0], rb_res_type, (void**)&res1) &&
-      enif_get_uint(env, argv[1], &n))) {
+      enif_get_uint(env, argv[0], &n) &&
+      enif_get_resource(env, argv[1], rb_res_type, (void**)&res1))) {
     return enif_make_badarg(env);
   }
 
@@ -207,8 +207,8 @@ static ERL_NIF_TERM rb_is_member(ErlNifEnv* env, int argc, const ERL_NIF_TERM ar
   uint32_t n;
 
   if(!(argc == 2 &&
-      enif_get_resource(env, argv[0], rb_res_type, (void**)&res1) &&
-      enif_get_uint(env, argv[1], &n))) {
+      enif_get_uint(env, argv[0], &n) &&
+      enif_get_resource(env, argv[1], rb_res_type, (void**)&res1))) {
     return enif_make_badarg(env);
   }
 
