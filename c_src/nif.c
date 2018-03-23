@@ -327,6 +327,29 @@ static ERL_NIF_TERM rb_difference(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
   }
 }
 
+static ERL_NIF_TERM rb_flip(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+  rb_res *res1;
+  uint32_t start, end;
+
+  if(!(argc == 3 &&
+      enif_get_uint(env, argv[0], &start) &&
+      enif_get_uint(env, argv[1], &end) &&
+      enif_get_resource(env, argv[2], rb_res_type, (void**)&res1))) {
+    return enif_make_badarg(env);
+  }
+
+  if(res1->mutable) {
+    ErlNifMutex *lock = rb_global_lock(env);
+    roaring_bitmap_flip_inplace(res1->rb, start, end);
+    enif_mutex_unlock(lock);
+    return argv[0];
+  }
+  else {
+    roaring_bitmap_t *rb = roaring_bitmap_flip(res1->rb, start, end);
+    return rb_make_resource(env, rb, false);
+  }
+}
+
 static ERL_NIF_TERM rb_add(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
   rb_res *res1;
   uint32_t n;
@@ -648,6 +671,7 @@ static ErlNifFunc nif_funcs[] =
   {"union", 2, rb_union},
   {"sym_difference", 2, rb_sym_difference},
   {"difference", 2, rb_difference},
+  {"flip", 3, rb_flip},
   {"add", 2, rb_add},
   {"delete", 2, rb_delete},
   {"is_member", 2, rb_is_member},
