@@ -16,6 +16,7 @@
   union/2,
   sym_difference/2,
   difference/2,
+  flip/3,
   add/2,
   delete/2,
   is_member/2,
@@ -61,6 +62,8 @@ union(_BM1, _BM2) -> ?NOT_LOADED.
 sym_difference(_BM1, _BM2) -> ?NOT_LOADED.
 
 difference(_BM1, _BM2) -> ?NOT_LOADED.
+
+flip(_Start, _End, BM) -> ?NOT_LOADED.
 
 add(_N, _BM) -> ?NOT_LOADED.
 
