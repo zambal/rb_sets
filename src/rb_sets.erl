@@ -10,6 +10,8 @@
   to_list/1,
   to_mutable/1,
   is_mutable/1,
+  is_empty/1,
+  size/1,
   intersection/2,
   union/2,
   sym_difference/2,
@@ -17,7 +19,6 @@
   add/2,
   delete/2,
   is_member/2,
-  size/1,
   is_subset/2,
   is_strict_subset/2,
   equals/2,
@@ -49,6 +50,10 @@ to_mutable(_BM) -> ?NOT_LOADED.
 
 is_mutable(_BM) -> ?NOT_LOADED.
 
+is_empty(_BM) -> ?NOT_LOADED.
+
+size(_BM) -> ?NOT_LOADED.
+
 intersection(_BM1, _BM2) -> ?NOT_LOADED.
 
 union(_BM1, _BM2) -> ?NOT_LOADED.
@@ -62,8 +67,6 @@ add(_N, _BM) -> ?NOT_LOADED.
 delete(_N, _BM) -> ?NOT_LOADED.
 
 is_member(_N, _BM) -> ?NOT_LOADED.
-
-size(_BM) -> ?NOT_LOADED.
 
 is_subset(_BM1, _BM2) -> ?NOT_LOADED.
 
