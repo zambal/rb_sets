@@ -243,6 +243,51 @@ static ERL_NIF_TERM rb_is_mutable(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
     return ATOM_FALSE;
 }
 
+static ERL_NIF_TERM rb_is_empty(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+  rb_res *res1;
+
+  if(!(argc == 1 &&
+      enif_get_resource(env, argv[0], rb_res_type, (void**)&res1))) {
+    return enif_make_badarg(env);
+  }
+
+  if(res1->mutable) {
+    ErlNifMutex *lock = rb_global_lock(env);
+    bool empty = roaring_bitmap_is_empty(res1->rb);
+    enif_mutex_unlock(lock);
+
+    if(empty)
+      return ATOM_TRUE;
+    else
+      return ATOM_FALSE;
+  }
+  else {
+    if(roaring_bitmap_is_empty(res1->rb))
+      return ATOM_TRUE;
+    else
+      return ATOM_FALSE;
+  }
+}
+
+static ERL_NIF_TERM rb_size(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+  rb_res *res1;
+
+  if(!(argc == 1 &&
+      enif_get_resource(env, argv[0], rb_res_type, (void**)&res1))) {
+    return enif_make_badarg(env);
+  }
+
+  if(res1->mutable) {
+    ErlNifMutex *lock = rb_global_lock(env);
+    uint64_t size = roaring_bitmap_get_cardinality(res1->rb);
+    enif_mutex_unlock(lock);
+    return enif_make_uint64(env, size);
+  }
+  else {
+    return enif_make_uint64(env, roaring_bitmap_get_cardinality(res1->rb));
+  }
+}
+
 static ERL_NIF_TERM rb_intersection(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
   rb_res *res1, *res2;
 
@@ -444,25 +489,6 @@ static ERL_NIF_TERM rb_is_member(ErlNifEnv* env, int argc, const ERL_NIF_TERM ar
 
   if(member) return ATOM_TRUE;
   else return ATOM_FALSE;
-}
-
-static ERL_NIF_TERM rb_size(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
-  rb_res *res1;
-
-  if(!(argc == 1 &&
-      enif_get_resource(env, argv[0], rb_res_type, (void**)&res1))) {
-    return enif_make_badarg(env);
-  }
-
-  if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    uint64_t size = roaring_bitmap_get_cardinality(res1->rb);
-    enif_mutex_unlock(lock);
-    return enif_make_uint64(env, size);
-  }
-  else {
-    return enif_make_uint64(env, roaring_bitmap_get_cardinality(res1->rb));
-  }
 }
 
 static ERL_NIF_TERM rb_is_subset(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
@@ -693,6 +719,8 @@ static ErlNifFunc nif_funcs[] =
   {"to_list", 1, rb_to_list},
   {"to_mutable", 1, rb_to_mutable},
   {"is_mutable", 1, rb_is_mutable},
+  {"is_empty", 1, rb_is_empty},
+  {"size", 1, rb_size},
   {"intersection", 2, rb_intersection},
   {"union", 2, rb_union},
   {"sym_difference", 2, rb_sym_difference},
@@ -701,7 +729,6 @@ static ErlNifFunc nif_funcs[] =
   {"add", 2, rb_add},
   {"delete", 2, rb_delete},
   {"is_member", 2, rb_is_member},
-  {"size", 1, rb_size},
   {"is_subset", 2, rb_is_subset},
   {"is_strict_subset", 2, rb_is_strict_subset},
   {"equals", 2, rb_equals},
