@@ -58,6 +58,12 @@ static ERL_NIF_TERM rb_new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) 
   return rb_make_resource(env, roaring_bitmap_create(), false);
 }
 
+static ERL_NIF_TERM rb_new_mutable(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+  if(argc != 0) return enif_make_badarg(env);
+
+  return rb_make_resource(env, roaring_bitmap_create(), true);
+}
+
 static ERL_NIF_TERM rb_from_range(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
   uint32_t min, max, step;
 
@@ -117,6 +123,24 @@ static ERL_NIF_TERM rb_from_mutable(ErlNifEnv* env, int argc, const ERL_NIF_TERM
   else
     return argv[0];
 }
+
+static ERL_NIF_TERM rb_set_immutable(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+  rb_res *res1;
+
+  if(!(argc == 1 &&
+      enif_get_resource(env, argv[0], rb_res_type, (void**)&res1))) {
+    return enif_make_badarg(env);
+  }
+
+  if(res1->mutable) {
+    ErlNifMutex *lock = rb_global_lock(env);
+    res1->mutable = false;
+    enif_mutex_unlock(lock);
+  }
+
+  return argv[0];
+}
+
 
 static ERL_NIF_TERM rb_from_binary(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
   ErlNifBinary bin;
@@ -688,9 +712,11 @@ static void unload(ErlNifEnv* env, void* priv_data) {
 static ErlNifFunc nif_funcs[] =
 {
   {"new", 0, rb_new},
+  {"new_mutable", 0, rb_new_mutable},
   {"from_list", 1, rb_from_list},
   {"from_range", 3, rb_from_range},
   {"from_mutable", 1, rb_from_mutable},
+  {"set_immutable", 1, rb_set_immutable},
   {"from_binary", 1, rb_from_binary},
   {"to_binary", 1, rb_to_binary},
   {"to_list", 1, rb_to_list},

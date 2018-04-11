@@ -2,9 +2,11 @@
 
 -export([
   new/0,
+  new_mutable/0,
   from_list/1,
   from_range/3,
   from_mutable/1,
+  set_immutable/1,
   from_binary/1,
   to_binary/1,
   to_list/1,
@@ -35,11 +37,15 @@
 
 new() -> ?NOT_LOADED.
 
+new_mutable() -> ?NOT_LOADED.
+
 from_list(_List) -> ?NOT_LOADED.
 
 from_range(_Min, _Max, _Step) -> ?NOT_LOADED.
 
 from_mutable(_BM) -> ?NOT_LOADED.
+
+set_immutable(_BM) -> ?NOT_LOADED.
 
 from_binary(_Bin) -> ?NOT_LOADED.
 
@@ -63,7 +69,7 @@ sym_difference(_BM1, _BM2) -> ?NOT_LOADED.
 
 difference(_BM1, _BM2) -> ?NOT_LOADED.
 
-flip(_Start, _End, BM) -> ?NOT_LOADED.
+flip(_Start, _End, _BM) -> ?NOT_LOADED.
 
 add(_N, _BM) -> ?NOT_LOADED.
 
