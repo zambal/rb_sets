@@ -34,7 +34,10 @@ static inline ERL_NIF_TERM rb_make_resource(ErlNifEnv *env, roaring_bitmap_t *rb
   res->rb = rb;
   res->mutable = mutable;
 
-  return enif_make_resource(env, res);
+  ERL_NIF_TERM nif_res = enif_make_resource(env, res);
+  enif_release_resource(res);
+
+  return nif_res;
 }
 
 static inline ErlNifMutex *rb_global_lock(ErlNifEnv *env) {
