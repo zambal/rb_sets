@@ -695,6 +695,15 @@ static int load(ErlNifEnv* env, void** priv_data, ERL_NIF_TERM load_info)
   return 0;
 }
 
+static int upgrade(ErlNifEnv* env, void** priv_data, void** old_priv, ERL_NIF_TERM load_info) {
+  __UNUSED(env);
+  __UNUSED(priv_data);
+  __UNUSED(old_priv);
+  __UNUSED(load_info);
+
+  return 0;
+}
+
 static void unload(ErlNifEnv* env, void* priv_data) {
   __UNUSED(env);
   rb_priv_data *priv = (rb_priv_data *)priv_data;
@@ -738,4 +747,4 @@ static ErlNifFunc nif_funcs[] =
   {"reset", 1, rb_reset},
 };
 
-ERL_NIF_INIT(rb_sets, nif_funcs, &load, NULL, NULL, &unload);
+ERL_NIF_INIT(rb_sets, nif_funcs, &load, NULL, &upgrade, &unload);
