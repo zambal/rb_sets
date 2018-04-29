@@ -17,13 +17,8 @@ typedef struct {
 
 typedef struct {
   roaring_uint32_iterator_t *it;
-  ErlNifMutex *lock;
   rb_res *rbres;
 } it_res;
-
-typedef struct {
-  ErlNifMutex *lock;
-} rb_priv_data;
 
 static inline ERL_NIF_TERM rb_make_resource(ErlNifEnv *env, roaring_bitmap_t *rb, bool mutable) {
   if(!rb) return enif_make_badarg(env);
@@ -38,18 +33,6 @@ static inline ERL_NIF_TERM rb_make_resource(ErlNifEnv *env, roaring_bitmap_t *rb
   enif_release_resource(res);
 
   return nif_res;
-}
-
-static inline ErlNifMutex *rb_global_lock(ErlNifEnv *env) {
-  rb_priv_data *priv = (rb_priv_data *)enif_priv_data(env);
-
-  enif_mutex_lock(priv->lock);
-  return priv->lock;
-}
-
-static inline ErlNifMutex *rb_get_global_lock(ErlNifEnv *env) {
-  rb_priv_data *priv = (rb_priv_data *)enif_priv_data(env);
-  return priv->lock;
 }
 
 static ERL_NIF_TERM rb_new(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
@@ -115,9 +98,7 @@ static ERL_NIF_TERM rb_from_mutable(ErlNifEnv* env, int argc, const ERL_NIF_TERM
   }
 
   if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
     roaring_bitmap_t *rb = roaring_bitmap_copy(res1->rb);
-    enif_mutex_unlock(lock);
     return rb_make_resource(env, rb, false);
   }
   else
@@ -132,11 +113,7 @@ static ERL_NIF_TERM rb_set_immutable(ErlNifEnv* env, int argc, const ERL_NIF_TER
     return enif_make_badarg(env);
   }
 
-  if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    res1->mutable = false;
-    enif_mutex_unlock(lock);
-  }
+  res1->mutable = false;
 
   return argv[0];
 }
@@ -167,20 +144,10 @@ static ERL_NIF_TERM rb_to_binary(ErlNifEnv* env, int argc, const ERL_NIF_TERM ar
     return enif_make_badarg(env);
   }
 
-  if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    size = roaring_bitmap_size_in_bytes(res1->rb);
-    buf = enif_make_new_binary(env, size, &bin);
-    if(!buf) return enif_make_badarg(env);
-    roaring_bitmap_serialize(res1->rb, (char *)buf);
-    enif_mutex_unlock(lock);
-  }
-  else {
-    size = roaring_bitmap_size_in_bytes(res1->rb);
-    buf = enif_make_new_binary(env, size, &bin);
-    if(!buf) return enif_make_badarg(env);
-    roaring_bitmap_serialize(res1->rb, (char *)buf);
-  }
+  size = roaring_bitmap_size_in_bytes(res1->rb);
+  buf = enif_make_new_binary(env, size, &bin);
+  if(!buf) return enif_make_badarg(env);
+  roaring_bitmap_serialize(res1->rb, (char *)buf);
 
   return bin;
 }
@@ -196,25 +163,18 @@ static ERL_NIF_TERM rb_to_list(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
 
   ERL_NIF_TERM list = enif_make_list(env, 0);
   ERL_NIF_TERM n;
-  ErlNifMutex *lock;
-  bool mutable = res1->mutable;
 
-  if(mutable) lock = rb_global_lock(env);
-  uint64_t c = roaring_bitmap_get_cardinality(res1->rb);
+  uint64_t size = roaring_bitmap_get_cardinality(res1->rb);
 
-  if(c > 0) {
-    uint32_t *ans = (uint32_t *)enif_alloc(c * sizeof(uint32_t));
+  if(size > 0) {
+    uint32_t *ans = (uint32_t *)enif_alloc(size * sizeof(uint32_t));
     roaring_bitmap_to_uint32_array(res1->rb, ans);
-    if(mutable) enif_mutex_unlock(lock);
 
-    uint64_t i = c;
     do {
-      n = enif_make_uint(env, ans[--i]);
+      n = enif_make_uint(env, ans[--size]);
       list = enif_make_list_cell(env, n, list);
-    } while(i > 0);
-
-  } else if(mutable) enif_mutex_unlock(lock);
-
+    } while(size > 0);
+  }
   return list;
 }
 
@@ -254,22 +214,10 @@ static ERL_NIF_TERM rb_is_empty(ErlNifEnv* env, int argc, const ERL_NIF_TERM arg
     return enif_make_badarg(env);
   }
 
-  if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    bool empty = roaring_bitmap_is_empty(res1->rb);
-    enif_mutex_unlock(lock);
-
-    if(empty)
-      return ATOM_TRUE;
-    else
-      return ATOM_FALSE;
-  }
-  else {
-    if(roaring_bitmap_is_empty(res1->rb))
-      return ATOM_TRUE;
-    else
-      return ATOM_FALSE;
-  }
+  if(roaring_bitmap_is_empty(res1->rb))
+    return ATOM_TRUE;
+  else
+    return ATOM_FALSE;
 }
 
 static ERL_NIF_TERM rb_size(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
@@ -280,15 +228,7 @@ static ERL_NIF_TERM rb_size(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_badarg(env);
   }
 
-  if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    uint64_t size = roaring_bitmap_get_cardinality(res1->rb);
-    enif_mutex_unlock(lock);
-    return enif_make_uint64(env, size);
-  }
-  else {
-    return enif_make_uint64(env, roaring_bitmap_get_cardinality(res1->rb));
-  }
+  return enif_make_uint64(env, roaring_bitmap_get_cardinality(res1->rb));
 }
 
 static ERL_NIF_TERM rb_intersection(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
@@ -301,16 +241,8 @@ static ERL_NIF_TERM rb_intersection(ErlNifEnv* env, int argc, const ERL_NIF_TERM
   }
 
   if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
     roaring_bitmap_and_inplace(res1->rb, res2->rb);
-    enif_mutex_unlock(lock);
     return argv[0];
-  }
-  else if(res2->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    roaring_bitmap_t *rb = roaring_bitmap_and(res1->rb, res2->rb);
-    enif_mutex_unlock(lock);
-    return rb_make_resource(env, rb, false);
   }
   else {
     roaring_bitmap_t *rb = roaring_bitmap_and(res1->rb, res2->rb);
@@ -328,16 +260,8 @@ static ERL_NIF_TERM rb_union(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]
   }
 
   if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
     roaring_bitmap_or_inplace(res1->rb, res2->rb);
-    enif_mutex_unlock(lock);
     return argv[0];
-  }
-  else if(res2->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    roaring_bitmap_t *rb = roaring_bitmap_or(res1->rb, res2->rb);
-    enif_mutex_unlock(lock);
-    return rb_make_resource(env, rb, false);
   }
   else {
     roaring_bitmap_t *rb = roaring_bitmap_or(res1->rb, res2->rb);
@@ -355,16 +279,8 @@ static ERL_NIF_TERM rb_sym_difference(ErlNifEnv* env, int argc, const ERL_NIF_TE
   }
 
   if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
     roaring_bitmap_xor_inplace(res1->rb, res2->rb);
-    enif_mutex_unlock(lock);
     return argv[0];
-  }
-  else if(res2->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    roaring_bitmap_t *rb = roaring_bitmap_xor(res1->rb, res2->rb);
-    enif_mutex_unlock(lock);
-    return rb_make_resource(env, rb, false);
   }
   else {
     roaring_bitmap_t *rb = roaring_bitmap_xor(res1->rb, res2->rb);
@@ -382,16 +298,8 @@ static ERL_NIF_TERM rb_difference(ErlNifEnv* env, int argc, const ERL_NIF_TERM a
   }
 
   if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
     roaring_bitmap_andnot_inplace(res1->rb, res2->rb);
-    enif_mutex_unlock(lock);
     return argv[0];
-  }
-  else if(res2->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    roaring_bitmap_t *rb = roaring_bitmap_andnot(res1->rb, res2->rb);
-    enif_mutex_unlock(lock);
-    return rb_make_resource(env, rb, false);
   }
   else {
     roaring_bitmap_t *rb = roaring_bitmap_andnot(res1->rb, res2->rb);
@@ -411,9 +319,7 @@ static ERL_NIF_TERM rb_flip(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
   }
 
   if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
     roaring_bitmap_flip_inplace(res1->rb, start, end);
-    enif_mutex_unlock(lock);
     return argv[0];
   }
   else {
@@ -433,9 +339,7 @@ static ERL_NIF_TERM rb_add(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) 
   }
 
   if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
     roaring_bitmap_add(res1->rb, n);
-    enif_mutex_unlock(lock);
     return argv[1];
   }
   else {
@@ -457,9 +361,7 @@ static ERL_NIF_TERM rb_delete(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[
   }
 
   if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
     roaring_bitmap_remove(res1->rb, n);
-    enif_mutex_unlock(lock);
     return argv[1];
   }
   else {
@@ -480,17 +382,7 @@ static ERL_NIF_TERM rb_is_member(ErlNifEnv* env, int argc, const ERL_NIF_TERM ar
     return enif_make_badarg(env);
   }
 
-  bool member;
-  if(res1->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    member = roaring_bitmap_contains(res1->rb, n);
-    enif_mutex_unlock(lock);
-  }
-  else {
-    member = roaring_bitmap_contains(res1->rb, n);
-  }
-
-  if(member) return ATOM_TRUE;
+  if(roaring_bitmap_contains(res1->rb, n)) return ATOM_TRUE;
   else return ATOM_FALSE;
 }
 
@@ -503,17 +395,7 @@ static ERL_NIF_TERM rb_is_subset(ErlNifEnv* env, int argc, const ERL_NIF_TERM ar
     return enif_make_badarg(env);
   }
 
-  bool subset;
-  if(res1->mutable || res2->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    subset = roaring_bitmap_is_subset(res1->rb, res2->rb);
-    enif_mutex_unlock(lock);
-  }
-  else {
-    subset = roaring_bitmap_is_subset(res1->rb, res2->rb);
-  }
-
-  if(subset) return ATOM_TRUE;
+  if(roaring_bitmap_is_subset(res1->rb, res2->rb)) return ATOM_TRUE;
   else return ATOM_FALSE;
 }
 
@@ -526,17 +408,7 @@ static ERL_NIF_TERM rb_is_strict_subset(ErlNifEnv* env, int argc, const ERL_NIF_
     return enif_make_badarg(env);
   }
 
-  bool subset;
-  if(res1->mutable || res2->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    subset = roaring_bitmap_is_strict_subset(res1->rb, res2->rb);
-    enif_mutex_unlock(lock);
-  }
-  else {
-    subset = roaring_bitmap_is_strict_subset(res1->rb, res2->rb);
-  }
-
-  if(subset) return ATOM_TRUE;
+  if(roaring_bitmap_is_strict_subset(res1->rb, res2->rb)) return ATOM_TRUE;
   else return ATOM_FALSE;
 }
 
@@ -549,17 +421,7 @@ static ERL_NIF_TERM rb_equals(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[
     return enif_make_badarg(env);
   }
 
-  bool equals;
-  if(res1->mutable || res2->mutable) {
-    ErlNifMutex *lock = rb_global_lock(env);
-    equals = roaring_bitmap_equals(res1->rb, res2->rb);
-    enif_mutex_unlock(lock);
-  }
-  else {
-    equals = roaring_bitmap_equals(res1->rb, res2->rb);
-  }
-
-  if(equals) return ATOM_TRUE;
+  if(roaring_bitmap_equals(res1->rb, res2->rb)) return ATOM_TRUE;
   else return ATOM_FALSE;
 }
 
@@ -574,13 +436,6 @@ static ERL_NIF_TERM rb_iterator(ErlNifEnv* env, int argc, const ERL_NIF_TERM arg
 
   res = (it_res *)enif_alloc_resource(it_res_type, sizeof(it_res));
   if(!res) return enif_make_badarg(env);
-
-  if(res1->mutable)
-    res->lock = rb_get_global_lock(env);
-  else {
-    res->lock = enif_mutex_create("it_lock");
-    if(!res->lock) return enif_make_badarg(env);
-  }
 
   res->it = NULL;
   res->rbres = res1;
@@ -597,20 +452,15 @@ static ERL_NIF_TERM rb_next(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_badarg(env);
   }
 
-  enif_mutex_lock(res->lock);
-  ERL_NIF_TERM ret;
   if(!res->it) {
     res->it = roaring_create_iterator(res->rbres->rb);
     if(!res->it) return enif_make_badarg(env);
-    ret = enif_make_uint(env, res->it->current_value);
+    return enif_make_uint(env, res->it->current_value);
   }
   else if(roaring_advance_uint32_iterator(res->it))
-    ret = enif_make_uint(env, res->it->current_value);
+    return enif_make_uint(env, res->it->current_value);
   else
-    ret = ATOM_UNDEFINED;
-
-  enif_mutex_unlock(res->lock);
-  return ret;
+    return ATOM_UNDEFINED;
 }
 
 static ERL_NIF_TERM rb_move(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
@@ -623,11 +473,8 @@ static ERL_NIF_TERM rb_move(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_badarg(env);
   }
 
-  enif_mutex_lock(res->lock);
   if(roaring_move_uint32_iterator_equalorlarger(res->it, n)) {
-    ERL_NIF_TERM ret = enif_make_uint(env, res->it->current_value);
-    enif_mutex_unlock(res->lock);
-    return ret;
+    return enif_make_uint(env, res->it->current_value);
   }
   else
     return ATOM_UNDEFINED;
@@ -641,12 +488,11 @@ static ERL_NIF_TERM rb_reset(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]
     return enif_make_badarg(env);
   }
 
-  enif_mutex_lock(res->lock);
   if(res->it) {
     roaring_free_uint32_iterator(res->it);
     res->it = NULL;
   }
-  enif_mutex_unlock(res->lock);
+
   return argv[0];
 }
 
@@ -667,21 +513,14 @@ static void it_res_dtor(ErlNifEnv *env, void *resource) {
   if(res->it)
     roaring_free_uint32_iterator(res->it);
 
-  if(!res->rbres->mutable && res->lock)
-    enif_mutex_destroy(res->lock);
-
   enif_release_resource(res->rbres);
 }
 
 static int load(ErlNifEnv* env, void** priv_data, ERL_NIF_TERM load_info)
 {
+  __UNUSED(priv_data);
   __UNUSED(load_info);
 
-  rb_priv_data *priv = (rb_priv_data *)enif_alloc(sizeof(rb_priv_data));
-  priv->lock = enif_mutex_create("rb_global_lock");
-  if(!priv->lock) return -1;
-
-  *priv_data = priv;
 
   rb_res_type =
     enif_open_resource_type(env, NULL, "roaring_bitmap",
@@ -709,12 +548,7 @@ static int upgrade(ErlNifEnv* env, void** priv_data, void** old_priv, ERL_NIF_TE
 
 static void unload(ErlNifEnv* env, void* priv_data) {
   __UNUSED(env);
-  rb_priv_data *priv = (rb_priv_data *)priv_data;
-
-  if(priv->lock)
-    enif_mutex_destroy(priv->lock);
-
-  enif_free(priv);
+  __UNUSED(priv_data);
 }
 
 
