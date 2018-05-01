@@ -105,6 +105,19 @@ static ERL_NIF_TERM rb_from_mutable(ErlNifEnv* env, int argc, const ERL_NIF_TERM
     return argv[0];
 }
 
+static ERL_NIF_TERM rb_set_mutable(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
+  rb_res *res1;
+
+  if(!(argc == 1 &&
+      enif_get_resource(env, argv[0], rb_res_type, (void**)&res1))) {
+    return enif_make_badarg(env);
+  }
+
+  res1->mutable = true;
+
+  return argv[0];
+}
+
 static ERL_NIF_TERM rb_set_immutable(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
   rb_res *res1;
 
@@ -117,7 +130,6 @@ static ERL_NIF_TERM rb_set_immutable(ErlNifEnv* env, int argc, const ERL_NIF_TER
 
   return argv[0];
 }
-
 
 static ERL_NIF_TERM rb_from_binary(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]) {
   ErlNifBinary bin;
@@ -559,6 +571,7 @@ static ErlNifFunc nif_funcs[] =
   {"from_list", 1, rb_from_list},
   {"from_range", 3, rb_from_range},
   {"from_mutable", 1, rb_from_mutable},
+  {"set_mutable", 1, rb_set_mutable},
   {"set_immutable", 1, rb_set_immutable},
   {"from_binary", 1, rb_from_binary},
   {"to_binary", 1, rb_to_binary},

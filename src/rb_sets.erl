@@ -6,6 +6,7 @@
   from_list/1,
   from_range/3,
   from_mutable/1,
+  set_mutable/1,
   set_immutable/1,
   from_binary/1,
   to_binary/1,
@@ -44,6 +45,8 @@ from_list(_List) -> ?NOT_LOADED.
 from_range(_Min, _Max, _Step) -> ?NOT_LOADED.
 
 from_mutable(_BM) -> ?NOT_LOADED.
+
+set_mutable(_BM) -> ?NOT_LOADED.
 
 set_immutable(_BM) -> ?NOT_LOADED.
 
