@@ -465,8 +465,11 @@ static ERL_NIF_TERM rb_next(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
   }
 
   if(!res->it) {
+    if(roaring_bitmap_is_empty(res->rbres->rb)) return ATOM_UNDEFINED;
+
     res->it = roaring_create_iterator(res->rbres->rb);
     if(!res->it) return enif_make_badarg(env);
+
     return enif_make_uint(env, res->it->current_value);
   }
   else if(roaring_advance_uint32_iterator(res->it))
