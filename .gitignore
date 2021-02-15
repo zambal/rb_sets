@@ -1,3 +1,4 @@
 *.o
 *.so
 _build
+priv/rb_sets.so
